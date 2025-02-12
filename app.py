@@ -115,12 +115,12 @@ if st.button("Dodaj trošak"):
         
         save_to_db(ime_prezime, odobrio, kategorija, iznos, valuta, file_paths)
 
-        # Osvježavanje podataka iz baze
+
         st.session_state.troskovi = load_from_db()
         
         st.success("Trošak dodat!")
 
-# Prikaz tabele sumiranih troškova
+# Prikaz tabele troškova
 df = st.session_state.troskovi
 st.dataframe(df)
 
@@ -136,10 +136,10 @@ Image.MAX_IMAGE_PIXELS = None
 def get_image_hash(image_path):
     try:
         with Image.open(image_path) as img:
-            img = img.convert("RGB")  # Konverzija u RGB (popravlja CMYK probleme)
+            img = img.convert("RGB") 
             return md5(img.tobytes()).hexdigest()
     except:
-        return None  # Ako postoji greška, preskačemo sliku
+        return None  # Ako postoji greska, preskoci sliku
 
 if st.button("Preuzmi PDF"):
     if df.empty:
@@ -202,15 +202,15 @@ if st.button("Preuzmi PDF"):
                             a4_ratio = a4_width / a4_height
 
                             if img_ratio > a4_ratio:
-                                # Slika je šira od A4 formata, prilagođavamo visinu
+                                
                                 new_height = a4_height
                                 new_width = a4_height * img_ratio
                             else:
-                                # Slika je viša, prilagođavamo širinu
+                                
                                 new_width = a4_width
                                 new_height = a4_width / img_ratio
 
-                            # Sačuvaj optimizovanu sliku
+                            #čuvaj optimizovanu sliku
                             optimized_img_path = f"uploads/optimized_{os.path.basename(file_path)}.jpg"
                             img.save(optimized_img_path, "JPEG", quality=90)
 
@@ -229,7 +229,7 @@ if st.button("Preuzmi PDF"):
                             merger.append(img_pdf_path)
 
                         except:
-                            continue  # Ako slika ne može da se učita, samo je preskačemo
+                            continue  # Ako slika ne može da se učita, preskačemo
 
                     elif file_path.endswith(".pdf"):
                         merger.append(file_path)
