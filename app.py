@@ -76,10 +76,10 @@ if "troskovi" not in st.session_state:
 st.title("Zahtev za refundiranje troškova")
 
 # **Dugme za reset baze**
-if st.button("Resetuj bazu podataka"):
+if st.button("Pokreni aplikaciju"):
     reset_db()
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
-    st.success("Baza je uspešno resetovana!")
+    st.success("Aplikacija uspešno pokrenuta!")
 
 # Unos podataka
 ime_prezime = st.text_input("Ime i prezime")
