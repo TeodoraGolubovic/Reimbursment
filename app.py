@@ -48,59 +48,6 @@ if "app_started" not in st.session_state:
 if "troskovi" not in st.session_state:
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
 
-<<<<<<< HEAD
-# Naslov aplikacije
-st.title("Zahtev za refundiranje troškova")
-
-# **Dugme za reset baze**
-if st.button("Pokreni aplikaciju"):
-    reset_db()
-    st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
-    st.success("Aplikacija uspešno pokrenuta!")
-
-# Unos podataka
-ime_prezime = st.text_input("Ime i prezime")
-odobrio = st.text_input("Osoba koja je odobrila", placeholder="Obavezno polje")
-
-kategorija = st.selectbox("Kategorija troška:", [
-    "Prevoz, taxi (529111)",
-    "Gorivo (51300)",
-    "Putarine (53940)",
-    "Reprezentacija, kurirska dostava (55100)",
-    "Ostali troškovi - npr. parking, hotel (55900)"
-])
-
-iznos_str = st.text_input("Iznos", value="", placeholder="Unesite iznos u RSD")
-
-# Konverzija unosa u float (ako je prazno, postavlja se na 0)
-try:
-    iznos = float(iznos_str) if iznos_str.strip() else None  # None znači da korisnik mora uneti broj
-except ValueError:
-    st.warning("Unesite validan broj za iznos.")
-    iznos = None
-valuta = "RSD"
-
-# Upload računa
-uploaded_files = st.file_uploader("Otpremite račune", type=["pdf", "jpg", "png"], accept_multiple_files=True)
-
-# Dodavanje troška
-if st.button("Dodaj trošak"):
-    if not odobrio or not uploaded_files:
-        st.warning("Morate uneti osobu koja je odobrila i dodati račune.")
-    else:
-        file_paths = [save_uploaded_file(f) for f in uploaded_files]
-        
-        save_to_db(ime_prezime, odobrio, kategorija, iznos, valuta, file_paths)
-
-
-        st.session_state.troskovi = load_from_db()
-        
-        st.success("Trošak dodat!")
-
-# Prikaz tabele troškova
-df = st.session_state.troskovi
-st.dataframe(df)
-=======
 # Dugme za pokretanje aplikacije
 if st.button("Pokreni aplikaciju"):
     reset_db()
@@ -166,7 +113,6 @@ if st.session_state.app_started:
     st.dataframe(df)
 else:
     st.warning("Kliknite na 'Pokreni aplikaciju' da biste započeli unos podataka.")
->>>>>>> 745aa62 (Ispravke pri pokretanju aplikacije i pri unosu racuna)
 
 from hashlib import md5
 from PIL import Image
