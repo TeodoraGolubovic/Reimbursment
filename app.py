@@ -41,7 +41,7 @@ def reset_db():
     conn.close()
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
     st.session_state.app_started = True
-    st.session_state.dnevnica = 0  # Reset dnevnice
+    st.session_state.dnevnica_dodata = False  # Dodato da spreči dupliranje dnevnice
 
 init_db()
 
@@ -52,6 +52,8 @@ if "troskovi" not in st.session_state:
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
 if "dnevnica" not in st.session_state:
     st.session_state.dnevnica = 0
+if "dnevnica_dodata" not in st.session_state:
+    st.session_state.dnevnica_dodata = False
 
 # Dugme za pokretanje aplikacije
 if st.button("Pokreni aplikaciju"):
@@ -85,8 +87,18 @@ if st.session_state.app_started:
         
         ukupna_dnevnica = pune_dnevnice + dodatna_dnevnica
         
-        st.session_state.dnevnica = ukupna_dnevnica
-        st.success(f"Dnevnica obračunata: {ukupna_dnevnica} RSD")
+        if not st.session_state.dnevnica_dodata:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO troskovi (ime, odobrio, kategorija, iznos, valuta, fajlovi) VALUES (?, ?, ?, ?, ?, ?)",
+                ("", "", "Dnevnica (52902)", ukupna_dnevnica, "RSD", "")
+            )
+            conn.commit()
+            conn.close()
+            st.session_state.dnevnica_dodata = True  # Obeleži da je dnevnica dodata
+        
+        st.success(f"Dnevnica obračunata i dodata u troškove: {ukupna_dnevnica} RSD")
     
     st.title("Zahtev za refundiranje troškova")
     
@@ -123,36 +135,20 @@ if st.session_state.app_started:
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
-            # Očuvanje originalne orijentacije slike
-            try:
-                with Image.open(file_path) as img:
-                    img = img.convert("RGB")
-                    img = img.transpose(Image.Transpose.EXIF)
-                    img.save(file_path)
-            except Exception as e:
-                print("Greška pri obradi slike:", e)
-            
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
             c.execute(
                 "INSERT INTO troskovi (ime, odobrio, kategorija, iznos, valuta, fajlovi) VALUES (?, ?, ?, ?, ?, ?)",
                 (ime_prezime, odobrio, kategorija, iznos, valuta, file_path)
             )
-            
-            if "dnevnica" in st.session_state and st.session_state.dnevnica > 0:
-                c.execute(
-                    "INSERT INTO troskovi (ime, odobrio, kategorija, iznos, valuta, fajlovi) VALUES (?, ?, ?, ?, ?, ?)",
-                    (ime_prezime, odobrio, "Dnevnica (52902)", st.session_state.dnevnica, "RSD", "")
-                )
-                st.session_state.dnevnica = 0  # Reset dnevnice nakon dodavanja
-            
             conn.commit()
-            df_conn = sqlite3.connect(DB_FILE)
-            st.session_state.troskovi = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", df_conn)
-            df_conn.close()
             conn.close()
             
             st.success("Trošak dodat!")
+    
+    df_conn = sqlite3.connect(DB_FILE)
+    st.session_state.troskovi = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", df_conn)
+    df_conn.close()
     
     df = st.session_state.troskovi
     st.dataframe(df)
