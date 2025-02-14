@@ -31,47 +31,24 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-
-# Funkcija za brisanje svih podataka iz baze
 def reset_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("DELETE FROM troskovi")  # Briše sve podatke iz tabele
     conn.commit()
     conn.close()
+    st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
+    st.session_state.app_started = True
 
-# Funkcija za čuvanje u bazu
-def save_to_db(ime, odobrio, kategorija, iznos, valuta, fajlovi):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO troskovi (ime, odobrio, kategorija, iznos, valuta, fajlovi) VALUES (?, ?, ?, ?, ?, ?)",
-        (ime, odobrio, kategorija, iznos, valuta, ",".join(fajlovi))
-    )
-    conn.commit()
-    conn.close()
+init_db()
 
-# Funkcija za učitavanje podataka iz baze
-def load_from_db():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", conn)
-    conn.close()
-    return df
-
-# Funkcija za čuvanje fajlova
-def save_uploaded_file(uploaded_file):
-    folder = "uploads"
-    os.makedirs(folder, exist_ok=True)
-    file_path = os.path.join(folder, uploaded_file.name)
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    return file_path
-
-# Resetovanje sesije i opcija za reset baze
+# Inicijalizacija sesije
+if "app_started" not in st.session_state:
+    st.session_state.app_started = False
 if "troskovi" not in st.session_state:
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
 
+<<<<<<< HEAD
 # Naslov aplikacije
 st.title("Zahtev za refundiranje troškova")
 
@@ -123,6 +100,73 @@ if st.button("Dodaj trošak"):
 # Prikaz tabele troškova
 df = st.session_state.troskovi
 st.dataframe(df)
+=======
+# Dugme za pokretanje aplikacije
+if st.button("Pokreni aplikaciju"):
+    reset_db()
+    st.success("Aplikacija je uspešno pokrenuta! Baza je resetovana.")
+
+# Sakrivanje polja dok se aplikacija ne pokrene
+if st.session_state.app_started:
+    # Naslov aplikacije
+    st.title("Zahtev za refundiranje troškova")
+    
+    # Unos podataka
+    ime_prezime = st.text_input("Ime i prezime")
+    odobrio = st.text_input("Osoba koja je odobrila", placeholder="Obavezno polje")
+    
+    kategorija = st.selectbox("Kategorija troška:", [
+        "Prevoz, taxi (529111)",
+        "Gorivo (51300)",
+        "Putarine (53940)",
+        "Reprezentacija, kurirska dostava (55100)",
+        "Ostali troškovi - npr. parking, hotel (55900)"
+    ])
+    
+    iznos_str = st.text_input("Iznos", value="", placeholder="Unesite iznos u RSD")
+    
+    try:
+        iznos = float(iznos_str) if iznos_str.strip() else None  # None znači da korisnik mora uneti broj
+    except ValueError:
+        st.warning("Unesite validan broj za iznos.")
+        iznos = None
+    valuta = "RSD"
+    
+    # Upload jednog fajla
+    uploaded_file = st.file_uploader("Otpremite račun", type=["pdf", "jpg", "png"], accept_multiple_files=False)
+    
+    # Dodavanje troška
+    if st.button("Dodaj trošak"):
+        if not odobrio or not uploaded_file:
+            st.warning("Morate uneti osobu koja je odobrila i dodati račun.")
+        else:
+            file_path = os.path.join("uploads", uploaded_file.name)
+            os.makedirs("uploads", exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO troskovi (ime, odobrio, kategorija, iznos, valuta, fajlovi) VALUES (?, ?, ?, ?, ?, ?)",
+                (ime_prezime, odobrio, kategorija, iznos, valuta, file_path)
+            )
+            conn.commit()
+            
+            # Ponovno otvaranje konekcije kako bismo koristili je za čitanje
+            df_conn = sqlite3.connect(DB_FILE)
+            st.session_state.troskovi = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", df_conn)
+            df_conn.close()
+            conn.close()
+            
+            st.success("Trošak dodat!")
+    
+    # Prikaz tabele troškova
+    df = st.session_state.troskovi
+    st.dataframe(df)
+else:
+    st.warning("Kliknite na 'Pokreni aplikaciju' da biste započeli unos podataka.")
+>>>>>>> 745aa62 (Ispravke pri pokretanju aplikacije i pri unosu racuna)
 
 from hashlib import md5
 from PIL import Image
