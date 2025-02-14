@@ -2,16 +2,14 @@ import streamlit as st
 import pandas as pd
 import os
 import sqlite3
-import datetime
 from PIL import Image
-from fpdf import FPDF
 from PyPDF2 import PdfMerger
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import datetime
 
 # Konfiguracija stranice
-st.set_page_config(page_title="Obračun dnevnice i refundacija", layout="wide")
+st.set_page_config(page_title="Zahtev za refundaciju", layout="wide")
 
 # Konekcija sa SQLite bazom
 DB_FILE = "troskovi.db"
@@ -41,7 +39,6 @@ def reset_db():
     conn.close()
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
     st.session_state.app_started = True
-    st.session_state.dnevnica_dodata = False  # Dodato da spreči dupliranje dnevnice
 
 init_db()
 
@@ -50,10 +47,6 @@ if "app_started" not in st.session_state:
     st.session_state.app_started = False
 if "troskovi" not in st.session_state:
     st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
-if "dnevnica" not in st.session_state:
-    st.session_state.dnevnica = 0
-if "dnevnica_dodata" not in st.session_state:
-    st.session_state.dnevnica_dodata = False
 
 # Dugme za pokretanje aplikacije
 if st.button("Pokreni aplikaciju"):
@@ -62,46 +55,10 @@ if st.button("Pokreni aplikaciju"):
 
 # Sakrivanje polja dok se aplikacija ne pokrene
 if st.session_state.app_started:
-    st.title("Obračun dnevnice")
-    
-    pocetak = st.date_input("Datum početka putovanja")
-    vreme_pocetka = st.time_input("Vreme početka putovanja")
-    
-    kraj = st.date_input("Datum kraja putovanja")
-    vreme_kraja = st.time_input("Vreme kraja putovanja")
-    
-    if st.button("Obračunaj dnevnicu"):
-        pocetak_datetime = datetime.datetime.combine(pocetak, vreme_pocetka)
-        kraj_datetime = datetime.datetime.combine(kraj, vreme_kraja)
-        trajanje = (kraj_datetime - pocetak_datetime).total_seconds() / 3600  # Trajanje u satima
-        
-        pune_dnevnice = int(trajanje // 24) * 3012
-        preostali_sati = trajanje % 24
-        
-        if preostali_sati < 8:
-            dodatna_dnevnica = 0
-        elif preostali_sati < 12:
-            dodatna_dnevnica = 1506
-        else:
-            dodatna_dnevnica = 3012
-        
-        ukupna_dnevnica = pune_dnevnice + dodatna_dnevnica
-        
-        if not st.session_state.dnevnica_dodata:
-            conn = sqlite3.connect(DB_FILE)
-            c = conn.cursor()
-            c.execute(
-                "INSERT INTO troskovi (ime, odobrio, kategorija, iznos, valuta, fajlovi) VALUES (?, ?, ?, ?, ?, ?)",
-                ("", "", "Dnevnica (52902)", ukupna_dnevnica, "RSD", "")
-            )
-            conn.commit()
-            conn.close()
-            st.session_state.dnevnica_dodata = True  # Obeleži da je dnevnica dodata
-        
-        st.success(f"Dnevnica obračunata i dodata u troškove: {ukupna_dnevnica} RSD")
-    
+    # Naslov aplikacije
     st.title("Zahtev za refundiranje troškova")
     
+    # Unos podataka
     ime_prezime = st.text_input("Ime i prezime")
     odobrio = st.text_input("Osoba koja je odobrila", placeholder="Obavezno polje")
     
@@ -142,16 +99,20 @@ if st.session_state.app_started:
                 (ime_prezime, odobrio, kategorija, iznos, valuta, file_path)
             )
             conn.commit()
+            
+            # Ponovno otvaranje konekcije kako bismo koristili je za čitanje
+            df_conn = sqlite3.connect(DB_FILE)
+            st.session_state.troskovi = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", df_conn)
+            df_conn.close()
             conn.close()
             
             st.success("Trošak dodat!")
     
-    df_conn = sqlite3.connect(DB_FILE)
-    st.session_state.troskovi = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", df_conn)
-    df_conn.close()
-    
+    # Prikaz tabele troškova
     df = st.session_state.troskovi
     st.dataframe(df)
+else:
+    st.warning("Kliknite na 'Pokreni aplikaciju' da biste započeli unos podataka.")
 
 from hashlib import md5
 from PIL import Image
