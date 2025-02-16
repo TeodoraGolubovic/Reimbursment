@@ -37,7 +37,7 @@ def reset_db():
     c.execute("DELETE FROM troskovi")  # Briše sve podatke iz tabele
     conn.commit()
     conn.close()
-    st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
+    st.session_state.troskovi = pd.DataFrame(columns=["id", "Kategorija", "Ukupno Iznos", "Fajlovi"])
     st.session_state.app_started = True
 
 init_db()
@@ -46,7 +46,7 @@ init_db()
 if "app_started" not in st.session_state:
     st.session_state.app_started = False
 if "troskovi" not in st.session_state:
-    st.session_state.troskovi = pd.DataFrame(columns=["Kategorija", "Ukupno Iznos", "Fajlovi"])
+    st.session_state.troskovi = pd.DataFrame(columns=["id", "Kategorija", "Ukupno Iznos", "Fajlovi"])
 
 # Dugme za pokretanje aplikacije
 if st.button("Pokreni aplikaciju"):
@@ -99,18 +99,38 @@ if st.session_state.app_started:
                 (ime_prezime, odobrio, kategorija, iznos, valuta, file_path)
             )
             conn.commit()
-            
-            # Ponovno otvaranje konekcije kako bismo koristili je za čitanje
-            df_conn = sqlite3.connect(DB_FILE)
-            st.session_state.troskovi = pd.read_sql_query("SELECT kategorija, SUM(iznos) as ukupno_iznos, GROUP_CONCAT(fajlovi) as fajlovi FROM troskovi GROUP BY kategorija", df_conn)
-            df_conn.close()
             conn.close()
             
+            # Osvježavanje podataka
+            df_conn = sqlite3.connect(DB_FILE)
+            st.session_state.troskovi = pd.read_sql_query("SELECT id, kategorija, iznos as 'Ukupno Iznos', fajlovi FROM troskovi", df_conn)
+            df_conn.close()
+            
             st.success("Trošak dodat!")
+
+    # Prikaz tabele troškova sa dugmetom za brisanje
+    df = st.session_state.troskovi.copy()
     
-    # Prikaz tabele troškova
-    df = st.session_state.troskovi
-    st.dataframe(df)
+    if not df.empty:
+        for index, row in df.iterrows():
+            col1, col2 = st.columns([4, 1])  # Postavljanje kolona, prva za podatke, druga za dugme za brisanje
+            with col1:
+                st.write(f"{row['kategorija']} - {row['Ukupno Iznos']} RSD")
+            with col2:
+                if st.button("❌", key=f"remove_{row['id']}"):
+                    conn = sqlite3.connect(DB_FILE)
+                    c = conn.cursor()
+                    c.execute("DELETE FROM troskovi WHERE id = ?", (row["id"],))
+                    conn.commit()
+                    conn.close()
+                    
+                    df_conn = sqlite3.connect(DB_FILE)
+                    st.session_state.troskovi = pd.read_sql_query("SELECT id, kategorija, iznos as 'Ukupno Iznos', fajlovi FROM troskovi", df_conn)
+                    df_conn.close()
+                    st.rerun()
+    
+    # Prikaz finalne tabele bez dodatnog dupliranja
+    st.dataframe(st.session_state.troskovi)
 else:
     st.warning("Kliknite na 'Pokreni aplikaciju' da biste započeli unos podataka.")
 
@@ -153,10 +173,10 @@ if st.button("Preuzmi PDF"):
 
         for _, row in df.iterrows():
             c.setFont("Helvetica", 11)
-            c.drawString(50, y, f"{row['kategorija']}: {row['ukupno_iznos']} RSD")
+            c.drawString(50, y, f"{row['kategorija']}: {row['Ukupno Iznos']} RSD")
             y -= 20
 
-        ukupno = df["ukupno_iznos"].sum()
+        ukupno = df["Ukupno Iznos"].sum()
         c.setFont("Helvetica-Bold", 12)
         c.drawString(50, y, f"UKUPNO: {ukupno} RSD")
 
